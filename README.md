@@ -2,34 +2,91 @@
 
 Async dispatch of ternary-packed GPU kernels. Queue ordering, conservation verification, and throughput measurement.
 
-## Overview
+## Why This Matters
 
 # ternary-dispatch
-
 Async dispatch of ternary-packed GPU kernels.
+Tests queue ordering, ternary conservation after processing, and throughput.
 
-## Stats
+## The Five-Layer Stack
 
-- **Tests**: 8
-- **LOC**: 229
-- **License**: Apache-2.0
+This crate is part of the **Oxide Stack** — a distributed GPU runtime built on five layers:
 
-## Part of the Oxide Stack
+```
+┌─────────────────┐
+│  cudaclaw        │  Persistent GPU kernels, warp consensus, SmartCRDT
+├─────────────────┤
+│  cuda-oxide      │  Flux → MIR → Pliron → NVVM → PTX compiler
+├─────────────────┤
+│  flux-core       │  Bytecode VM + A2A agent protocol
+├─────────────────┤
+│  pincher         │  "Vector DB as runtime, LLM as compiler"
+├─────────────────┤
+│  open-parallel   │  Async runtime (tokio fork)
+└─────────────────┘
+```
 
-This crate is part of the [Flux→PTX](https://github.com/SuperInstance/cuda-oxide/blob/main/FLUX_TO_PTX.md) experimental suite, testing synergies between the five layers of the distributed GPU runtime:
+The key insight: **ternary values {-1, 0, +1} map directly to GPU compute**. They pack 16× denser than FP32, enable XNOR+popcount matmul, and conservation laws become compile-time checks.
 
-1. **open-parallel** — async runtime (tokio fork)
-2. **pincher** — "Vector DB as runtime, LLM as compiler"
-3. **flux-core** — bytecode VM + A2A agent protocol
-4. **cuda-oxide** — Flux→MIR→Pliron→NVVM→PTX compiler
-5. **cudaclaw** — persistent GPU kernels, warp-level consensus, SmartCRDT
+## Design
+
+Every value in this crate follows **ternary algebra** (Z₃):
+
+| Value | Meaning | GPU Analog |
+|-------|---------|------------|
+| +1 | Positive / Active / Healthy | Warp vote yes |
+| 0 | Neutral / Pending / Balanced | Warp vote abstain |
+| -1 | Negative / Failed / Overloaded | Warp vote no |
+
+This isn't arbitrary — ternary is the natural encoding for:
+1. **BitNet b1.58** (Microsoft) — ternary LLMs at 60% less power
+2. **GPU warp voting** — hardware ballot returns ternary consensus
+3. **Conservation laws** — {-1, 0, +1} preserves quantity
+
+## Key Types
+
+```rust
+pub struct TritPack
+pub fn new
+pub fn get
+pub fn unpack
+pub fn tadd
+pub fn sum
+pub enum KernelOp
+pub struct DispatchResult
+pub struct TernaryDispatcher
+pub fn new
+pub fn enqueue
+pub fn queue_depth
+```
 
 ## Usage
 
+```toml
+[dependencies]
+ternary-dispatch = "0.1.0"
+```
+
 ```rust
 use ternary_dispatch::*;
-// See tests in src/lib.rs for examples
+// See src/lib.rs tests for complete working examples
 ```
+
+## Testing
+
+```bash
+git clone https://github.com/SuperInstance/ternary-dispatch.git
+cd ternary-dispatch
+cargo test    # 8 tests
+```
+
+## Stats
+
+| Metric | Value |
+|--------|-------|
+| Tests | 8 |
+| Lines of Rust | 230 |
+| Public API | 17 items |
 
 ## License
 
