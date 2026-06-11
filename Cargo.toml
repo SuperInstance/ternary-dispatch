@@ -1,6 +1,7 @@
 [package]
 name = "ternary-dispatch"
 version = "0.1.0"
+license = "MIT OR Apache-2.0"
 edition = "2021"
 description = "Async dispatch of ternary-packed GPU kernels. Queue ordering, conservation verification, and throughput measurement."
 repository = "https://github.com/SuperInstance/ternary-dispatch"
